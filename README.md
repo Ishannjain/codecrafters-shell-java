@@ -27,7 +27,7 @@ Time to move on to the next stage!
 # Stage 2 & beyond
 
 Note: This section is for stages 2 and beyond.
-
+t 
 1. Ensure you have `mvn` installed locally
 1. Run `./your_program.sh` to run your program, which is implemented in
    `src/main/java/Main.java`.
