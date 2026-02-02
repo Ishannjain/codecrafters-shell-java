@@ -9,6 +9,11 @@ public class Main {
             if(command.equals("exit")){
                 break;
             }
+            if(command.startsWith("echo ")){
+                String substr=command.substring(5);
+                System.out.println(substr);
+                continue;
+            }
             System.out.println(command + ": command not found");
         }
     }
