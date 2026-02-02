@@ -1,31 +1,48 @@
 import java.util.Scanner;
-
+import java.util.*;
+import java.io.File;
 public class Main {
+    private static String CheckType(String result){
+        String types[]={"exit","echo","type"};
+        String path=System.getenv("PATH");
+        String path_arr[]=path.split(File.pathSeparator);
+        for(int i=0;i<types.length;i++){
+            if(result.equals(types[i])){
+                return result+ " is a shell builtin";
+            }
+        }
+        for(int i=0;i<path_arr.length;i++){
+            File files=new File(path_arr[i],result);
+            if(files.exists() && files.canExecute()){
+                return  result+" is "+ files.getAbsolutePath();
+            }
+        }
+        return result+": not found";
+    }
     public static void main(String[] args) throws Exception {
         Scanner sc=new Scanner(System.in);
-        while(true){
+        boolean flag=true;
+        while(flag){
             System.out.print("$ "); 
-            String command=sc.nextLine();
+            String userinput=sc.nextLine();
+            String words[]=userinput.split(" ");
+            String command=words[0];
+            String remainwords[]=Arrays.copyOfRange(words,1,words.length);
+            String result=String.join(" ",remainwords);
+        
             if(command.equals("exit")){
-                break;
+                flag=false;
             }
-            if(command.startsWith("echo ")){
-                String substr=command.substring(5);
-                System.out.println(substr);
-                continue;
+            else if(command.equals("echo")){
+                System.out.println(result);
             }
-            if(command.startsWith("type ")){
-                String substr=command.substring(5);
-                if(substr.equals("echo") || substr.equals("exit") || substr.equals("type")){
-                    System.out.println(substr+" is a shell builtin");
-                    continue;
-                }
-                else{
-                    System.out.println(substr+": not found");
-                    continue;
-                }
+            else if(command.equals("type")){
+                System.out.println(CheckType(result));
             }
-            System.out.println(command + ": command not found");
+            else {
+            System.out.println(userinput+ ": command not found");
+            }
         }
+        
     }
 }
