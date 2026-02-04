@@ -102,9 +102,12 @@ public class Main {
             }
             //Built-in: cd
            else if(command.equals("cd")){
-                if(words.length < 2){
-                    commanddir = System.getProperty("user.home");
+                if(words.length < 2 || words[1].equals("~")){
+                    commanddir = System.getenv("HOME");
                 } else {
+                    if(words[1].startsWith(("~"+File.separator))){
+                        words[1]=System.getenv("HOME")+words[1].substring(1);
+                    }
                     File dir = new File(words[1]);
                     if(!dir.isAbsolute()){
                          dir = new File(commanddir, words[1]);
