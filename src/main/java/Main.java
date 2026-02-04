@@ -19,6 +19,17 @@ public class Main {
         }
         return result+": not found";
     }
+    private static File findExecutable(String command){
+        String path=System.getenv("PATH");
+        String path_arr[]=path.split(File.pathSeparator);
+        for(String str:path_arr){
+            File files=new File(str,command);
+            if(files.exists() && files.canExecute()){
+                return files;
+            }
+        }
+        return null;
+    }
     public static void main(String[] args) throws Exception {
         Scanner sc=new Scanner(System.in);
         boolean flag=true;
@@ -40,7 +51,18 @@ public class Main {
                 System.out.println(CheckType(result));
             }
             else {
-            System.out.println(userinput+ ": command not found");
+                File exe=findExecutable(command);
+                if(exe!=null){
+                        List<String> cmd=new ArrayList<>();
+                        cmd.add(command);
+                        cmd.addAll(Arrays.asList(remainwords));
+                        ProcessBuilder pb=new ProcessBuilder(cmd);
+                        pb.inheritIO();
+                        pb.start().waitFor();
+                }
+                else {
+                    System.out.println(userinput+ ": command not found");
+                }
             }
         }
         
