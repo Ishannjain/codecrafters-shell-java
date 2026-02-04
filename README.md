@@ -33,3 +33,58 @@ t
    `src/main/java/Main.java`.
 1. Commit your changes and run `git push origin master` to submit your solution
    to CodeCrafters. Test output will be streamed to your terminal.
+
+The goal of this challenge is to build a POSIX-like shell that can:
+- Parse user input
+- Execute external programs
+- Implement common shell built-in commands
+
+---
+
+## ✅ Implemented Features (So Far)
+
+### 🔹 Interactive REPL
+- Displays a shell prompt (`$ `)
+- Continuously reads user input until `exit` is called
+
+---
+
+### 🔹 Built-in Commands
+
+#### `exit`
+- Terminates the shell loop
+
+#### `echo`
+- Prints the provided arguments to standard output
+
+#### `pwd`
+- Prints the current working directory
+
+#### `type`
+- Identifies whether a command is:
+  - a shell builtin, or
+  - an executable found in `$PATH`, or
+  - not found
+
+#### `cd`
+- Changes the current working directory
+- Supported behavior:
+  - `cd <path>` — absolute or relative paths
+  - `cd` — navigates to the home directory
+  - `cd ~` — navigates to `$HOME`
+  - `cd ~/subdir` — resolves relative to `$HOME`
+- Directory state is preserved across commands
+
+---
+
+### 🔹 External Command Execution
+- Searches executables in `$PATH`
+- Executes commands using `ProcessBuilder`
+- Supports command arguments
+- Inherits standard input/output/error streams
+
+Examples:
+```sh
+ls
+ls -l
+cat file.txt
