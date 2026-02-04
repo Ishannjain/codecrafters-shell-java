@@ -3,7 +3,7 @@ import java.util.*;
 import java.io.File;
 public class Main {
     private static String CheckType(String result){
-        String types[]={"exit","echo","type"};
+        String types[]={"exit","echo","type","pwd"};
         String path=System.getenv("PATH");
         String path_arr[]=path.split(File.pathSeparator);
         for(int i=0;i<types.length;i++){
@@ -49,6 +49,9 @@ public class Main {
             }
             else if(command.equals("type")){
                 System.out.println(CheckType(result));
+            }
+            else if(command.equals("pwd")){
+                System.out.println(System.getProperty("user.dir"));
             }
             else {
                 File exe=findExecutable(command);
