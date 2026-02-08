@@ -61,12 +61,29 @@ public class Main {
         StringBuilder curr=new StringBuilder();
         boolean issinglequotes=false;
         boolean isdoublequotes=false;
+        boolean escape=false;
         for(int i=0;i<input.length();i++){
             char ch=input.charAt(i);
+             // If previous char was backslash, take this char literally
+            if(escape){
+                curr.append(ch);
+                escape=false;
+                continue;
+            }
+            // Backslash outside quotes starts escape
+            if (ch == '\\' && !isdoublequotes && !isdoublequotes) {
+                escape= true;
+                continue;
+            }
+            // Toggle single quotes (only if not in double quotes)
             if(ch=='\'' && !isdoublequotes){
                 issinglequotes=!issinglequotes;
-            }else if(ch=='"' && !issinglequotes){
+                continue;
+            }
+            //toggle duble quotes(only if not in single quotes)
+            else if(ch=='"' && !issinglequotes){
                 isdoublequotes=!isdoublequotes;
+                continue;
             }
             else if(Character.isWhitespace(ch) && !issinglequotes && !isdoublequotes){
                 if(curr.length()>0){
@@ -77,9 +94,13 @@ public class Main {
                 curr.append(ch);
             }
         }
+          // Trailing backslash → treat as literal '\'
+        if (escape) {
+            curr.append('\\');
+        }
         if(curr.length() > 0){
-        token.add(curr.toString());
-    }
+            token.add(curr.toString());
+        }
         return token;
     }
 

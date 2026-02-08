@@ -49,7 +49,7 @@ The goal of this challenge is to build a POSIX-like shell that can:
 
 ---
 
-### 🔹 Built-in Commands
+### 🔹 Built-in Commands 
 
 #### `exit`
 - Terminates the shell loop
