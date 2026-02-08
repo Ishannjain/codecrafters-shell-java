@@ -88,3 +88,37 @@ Examples:
 ls
 ls -l
 cat file.txt
+
+
+## Command Parsing
+
+The shell implements a character-by-character parser that closely follows
+POSIX shell rules.
+
+### Whitespace Handling
+- Outside quotes: whitespace separates arguments
+- Inside quotes: whitespace is preserved
+
+### Single Quotes (`'`)
+- Disable all special meaning
+- Everything inside is treated literally
+- Backslashes have no special behavior
+
+Example:
+```sh
+echo 'a\ b " c'
+
+## Output Redirection (`>`)
+
+The shell supports redirecting standard output to a file using the `>` operator.
+
+### Behavior
+- Redirects **standard output (fd 1)** only
+- Creates the file if it does not exist
+- Overwrites the file if it already exists
+- Standard error is not redirected
+
+### Examples
+```sh
+echo hello > output.txt
+cat output.txt

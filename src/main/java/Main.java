@@ -1,5 +1,6 @@
 import java.util.*;
 import java.io.File;
+import java.io.FileWriter;
 
 public class Main {
 
@@ -136,12 +137,25 @@ public class Main {
 
             // Split input by spaces
             List<String> token=parseInput(userinput);
-
+            // detect redirection 
+            String redirectfile=null;
+            List<String> finalargs=new ArrayList<>();
+            for(int i=0;i<token.size();i++){
+                String tmp=token.get(i);
+                if(tmp.equals(">")|| tmp.equals("1>")){
+                    if(i+1<token.size()){
+                        redirectfile=token.get(i+1);
+                        break;
+                    }
+                }else{
+                    finalargs.add(tmp);
+                }
+            }
             // First word is the command
-            String command = token.get(0);
+            String command = finalargs.get(0);
 
             // Remaining words are arguments
-            String remainwords[] = token.subList(1,token.size()).toArray(new String[0]);
+            String remainwords[] = token.subList(1,finalargs.size()).toArray(new String[0]);
 
             // Join arguments for echo/type
             String result = String.join(" ", remainwords);
@@ -149,12 +163,19 @@ public class Main {
             // Built-in: exit
             if(command.equals("exit")){
                 flag = false;
+                continue;
             }
 
             // Built-in: echo
-            else if(command.equals("echo")){
-                System.out.println(result);
-            }
+            if (command.equals("echo")) {
+                    if (redirectfile != null) {
+                        try (FileWriter fw = new FileWriter(redirectfile)) {
+                            fw.write(result + System.lineSeparator());
+                        }
+                    } else {
+                        System.out.println(result);
+                    }
+                }
 
             // Built-in: type
             else if(command.equals("type")){
@@ -193,35 +214,40 @@ public class Main {
                         System.out.println("cd: " + token.get(1) + ": No such file or directory");
                     }
                 }
-            }
-
-
-            // External command execution
+          }
+           // External command execution
             else {
                 File exe = findExecutable(command);
 
-                // If executable exists
-                if(exe != null){
+                if (exe != null) {
 
-                    // Build command with arguments
                     List<String> cmd = new ArrayList<>();
                     cmd.add(command);
                     cmd.addAll(Arrays.asList(remainwords));
 
-                    // Create process
                     ProcessBuilder pb = new ProcessBuilder(cmd);
                     pb.directory(new File(commanddir));
-                    // Use same input/output as shell
-                    pb.inheritIO();
 
-                    // Run process and wait until it finishes
+                    // stdin always from terminal
+                    pb.redirectInput(ProcessBuilder.Redirect.INHERIT);
+
+                    // stderr stays on terminal
+                    pb.redirectError(ProcessBuilder.Redirect.INHERIT);
+
+                    // stdout redirection
+                    if (redirectfile != null) {
+                        pb.redirectOutput(new File(redirectfile));
+                    } else {
+                        pb.redirectOutput(ProcessBuilder.Redirect.INHERIT);
+                    }
+
                     pb.start().waitFor();
                 }
                 else {
-                    // Command not found
                     System.out.println(userinput + ": command not found");
                 }
             }
+
         }
     }
 }
