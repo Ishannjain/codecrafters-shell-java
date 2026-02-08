@@ -71,7 +71,7 @@ public class Main {
                 continue;
             }
             // Backslash outside quotes starts escape
-            if (ch == '\\' && !isdoublequotes && !isdoublequotes) {
+            if (ch == '\\' && !issinglequotes && !isdoublequotes) {
                 escape= true;
                 continue;
             }
