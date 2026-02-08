@@ -75,6 +75,24 @@ public class Main {
                 escape= true;
                 continue;
             }
+            //backslash inside double quotes
+            if(ch=='\\' && isdoublequotes){
+                if(i+1<input.length()){
+                    char next=input.charAt(i+1);
+                    if(next=='"' ||next=='\\' ||next=='$' || next=='`'){
+                        curr.append(next);
+                        i++;
+                        continue;
+                    }
+                    //backslash new line continuation
+                    if(next=='\n'){
+                        i++;
+                        continue;
+                    }
+                }
+                curr.append('\\');
+                continue;
+            }
             // Toggle single quotes (only if not in double quotes)
             if(ch=='\'' && !isdoublequotes){
                 issinglequotes=!issinglequotes;
