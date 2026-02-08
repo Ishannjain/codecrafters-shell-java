@@ -60,11 +60,15 @@ public class Main {
         List<String> token=new ArrayList<>();
         StringBuilder curr=new StringBuilder();
         boolean issinglequotes=false;
+        boolean isdoublequotes=false;
         for(int i=0;i<input.length();i++){
             char ch=input.charAt(i);
-            if(ch=='\''){
+            if(ch=='\'' && !isdoublequotes){
                 issinglequotes=!issinglequotes;
-            }else if(Character.isWhitespace(ch) && !issinglequotes){
+            }else if(ch=='"' && !issinglequotes){
+                isdoublequotes=!isdoublequotes;
+            }
+            else if(Character.isWhitespace(ch) && !issinglequotes && !isdoublequotes){
                 if(curr.length()>0){
                     token.add(curr.toString());
                     curr.setLength(0);
