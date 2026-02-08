@@ -56,6 +56,28 @@ public class Main {
         // Command not found
         return null;
     }
+    private static List<String> parseInput(String input){
+        List<String> token=new ArrayList<>();
+        StringBuilder curr=new StringBuilder();
+        boolean issinglequotes=false;
+        for(int i=0;i<input.length();i++){
+            char ch=input.charAt(i);
+            if(ch=='\''){
+                issinglequotes=!issinglequotes;
+            }else if(Character.isWhitespace(ch) && !issinglequotes){
+                if(curr.length()>0){
+                    token.add(curr.toString());
+                    curr.setLength(0);
+                }
+            }else{
+                curr.append(ch);
+            }
+        }
+        if(curr.length() > 0){
+        token.add(curr.toString());
+    }
+        return token;
+    }
 
     public static void main(String[] args) throws Exception {
 
@@ -70,13 +92,13 @@ public class Main {
             String userinput = sc.nextLine();
 
             // Split input by spaces
-            String words[] = userinput.split(" ");
+            List<String> token=parseInput(userinput);
 
             // First word is the command
-            String command = words[0];
+            String command = token.get(0);
 
             // Remaining words are arguments
-            String remainwords[] = Arrays.copyOfRange(words, 1, words.length);
+            String remainwords[] = token.subList(1,token.size()).toArray(new String[0]);
 
             // Join arguments for echo/type
             String result = String.join(" ", remainwords);
@@ -101,25 +123,35 @@ public class Main {
                 System.out.println(commanddir);
             }
             //Built-in: cd
-           else if(command.equals("cd")){
-                if(words.length < 2 || words[1].equals("~")){
-                    commanddir = System.getenv("HOME");
-                } else {
-                    if(words[1].startsWith(("~"+File.separator))){
-                        words[1]=System.getenv("HOME")+words[1].substring(1);
-                    }
-                    File dir = new File(words[1]);
-                    if(!dir.isAbsolute()){
-                         dir = new File(commanddir, words[1]);
+          else if (command.equals("cd")) {
+
+                String home = System.getenv("HOME");
+
+                if (token.size() < 2 || token.get(1).equals("~")) {
+                    commanddir = home;
+                } 
+                else {
+                    String target = token.get(1);  //  copy into variable
+
+                    // Handle ~/something
+                    if (target.startsWith("~" + File.separator)) {
+                        target = home + target.substring(1);  // reassign variable
                     }
 
-                 if(dir.exists() && dir.isDirectory()){
-                     commanddir = dir.getCanonicalPath();
+                    File dir = new File(target);
+
+                    if (!dir.isAbsolute()) {
+                        dir = new File(commanddir, target);
+                    }
+
+                    if (dir.exists() && dir.isDirectory()) {
+                        commanddir = dir.getCanonicalPath();
                     } else {
-                  System.out.println("cd: " + words[1] + ": No such file or directory");
-                 }
-                 }
+                        System.out.println("cd: " + token.get(1) + ": No such file or directory");
+                    }
                 }
+            }
+
 
             // External command execution
             else {
