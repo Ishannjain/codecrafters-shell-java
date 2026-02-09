@@ -146,6 +146,8 @@ public class Main {
             String stdoutfile = null;
             String stderrfile = null;
             boolean appendstdout = false;
+            boolean appendstderr = false;
+
             List<String> finalargs = new ArrayList<>();
 
             for (int i = 0; i < token.size(); i++) {
@@ -163,6 +165,12 @@ public class Main {
                 }
                 else if (tmp.equals("2>")) {
                     stderrfile = token.get(i + 1);
+                    appendstderr=false;
+                    i++;
+                }
+                else if (tmp.equals("2>>")) {
+                    stderrfile = token.get(i + 1);
+                    appendstderr=true;
                     i++;
                 }
                 else {
@@ -275,10 +283,17 @@ public class Main {
                     if (err.getParentFile() != null) {
                         err.getParentFile().mkdirs();
                     }
-                    pb.redirectError(err);
-                } else {
+
+                    if (appendstderr) {
+                        pb.redirectError(ProcessBuilder.Redirect.appendTo(err));
+                    } else {
+                        pb.redirectError(err);
+                    }
+                } 
+                else {
                     pb.redirectError(ProcessBuilder.Redirect.INHERIT);
                 }
+
 
                 pb.start().waitFor();
             }
