@@ -122,3 +122,17 @@ The shell supports redirecting standard output to a file using the `>` operator.
 ```sh
 echo hello > output.txt
 cat output.txt
+
+## Standard Error Redirection (`2>`)
+
+The shell supports redirecting standard error (file descriptor 2) to a file.
+
+### Behavior
+- Redirects **stderr only**
+- Creates the file if it does not exist
+- Overwrites the file if it already exists
+- Standard output is unaffected
+
+### Example
+```sh
+cat missing 2> error.txt
