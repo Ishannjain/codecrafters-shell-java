@@ -143,26 +143,33 @@ public class Main {
             // Split input by spaces
             List<String> token=parseInput(userinput);
             // detect redirection 
-            String  stdoutfile=null;
-            String  stderrfile=null;
-            List<String> finalargs=new ArrayList<>();
-            for(int i=0;i<token.size();i++){
-                String tmp=token.get(i);
-                if(tmp.equals(">")|| tmp.equals("1>")){
-                    if(i+1<token.size()){
-                        stdoutfile=token.get(i+1);
-                        i++;
-                    }
-                }else if(tmp.equals("2>")){
-                        if(i+1<token.size()){
-                            stderrfile=token.get(i+1);
-                            i++;
-                        }
+            String stdoutfile = null;
+            String stderrfile = null;
+            boolean appendstdout = false;
+            List<String> finalargs = new ArrayList<>();
+
+            for (int i = 0; i < token.size(); i++) {
+                String tmp = token.get(i);
+
+                if (tmp.equals(">") || tmp.equals("1>")) {
+                    stdoutfile = token.get(i + 1);
+                    appendstdout = false;
+                    i++;
                 }
-                else{
+                else if (tmp.equals(">>") || tmp.equals("1>>")) {
+                    stdoutfile = token.get(i + 1);
+                    appendstdout = true;
+                    i++;
+                }
+                else if (tmp.equals("2>")) {
+                    stderrfile = token.get(i + 1);
+                    i++;
+                }
+                else {
                     finalargs.add(tmp);
                 }
             }
+
             // First word is the command
             String command = finalargs.get(0);
 
@@ -180,10 +187,9 @@ public class Main {
 
             // Built-in: echo
             if (command.equals("echo")) {
-
               // stdout handling
             if (stdoutfile != null) {
-                try (FileWriter fw = new FileWriter(stdoutfile)) {
+                try (FileWriter fw = new FileWriter(stdoutfile,appendstdout)) {
                     fw.write(result + System.lineSeparator());
                 }
             } else {
@@ -239,34 +245,47 @@ public class Main {
             else {
                 File exe = findExecutable(command);
 
-                if (exe != null) {
+            if (exe != null) {
 
-                   ProcessBuilder pb = new ProcessBuilder(finalargs);
-                    pb.directory(new File(commanddir));
+                ProcessBuilder pb = new ProcessBuilder(finalargs);
+                pb.directory(new File(commanddir));
 
-                    // stdin always from terminal
-                    pb.redirectInput(ProcessBuilder.Redirect.INHERIT);
+                // stdin
+                pb.redirectInput(ProcessBuilder.Redirect.INHERIT);
 
-                    // stdout
-                    if (stdoutfile != null) {
-                        pb.redirectOutput(new File(stdoutfile));
-                    } else {
-                        pb.redirectOutput(ProcessBuilder.Redirect.INHERIT);
+                // stdout
+                if (stdoutfile != null) {
+                    File out = new File(stdoutfile);
+                    if (out.getParentFile() != null) {
+                        out.getParentFile().mkdirs();
                     }
 
-                    // stderr
-                    if (stderrfile != null) {
-                        pb.redirectError(new File(stderrfile));
+                    if (appendstdout) {
+                        pb.redirectOutput(ProcessBuilder.Redirect.appendTo(out));
                     } else {
-                        pb.redirectError(ProcessBuilder.Redirect.INHERIT);
+                        pb.redirectOutput(out);
                     }
-
-                    pb.start().waitFor();
-
+                } else {
+                    pb.redirectOutput(ProcessBuilder.Redirect.INHERIT);
                 }
-                else {
-                    System.out.println(userinput + ": command not found");
+
+                // stderr
+                if (stderrfile != null) {
+                    File err = new File(stderrfile);
+                    if (err.getParentFile() != null) {
+                        err.getParentFile().mkdirs();
+                    }
+                    pb.redirectError(err);
+                } else {
+                    pb.redirectError(ProcessBuilder.Redirect.INHERIT);
                 }
+
+                pb.start().waitFor();
+            }
+            else {
+                System.out.println(userinput + ": command not found");
+            }
+
             }
 
         }
