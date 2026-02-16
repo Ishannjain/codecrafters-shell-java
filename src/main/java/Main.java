@@ -131,6 +131,29 @@ public class Main {
 
     // ---------------- RAW INPUT WITH AUTOCOMPLETE ----------------
 
+    private static String longestCommonPrefix(List<String> list) {
+        if (list.isEmpty()) return "";
+
+        String prefix = list.get(0);
+
+        for (int i = 1; i < list.size(); i++) {
+            String current = list.get(i);
+
+            int j = 0;
+            while (j < prefix.length() &&
+                j < current.length() &&
+                prefix.charAt(j) == current.charAt(j)) {
+                j++;
+            }
+
+            prefix = prefix.substring(0, j);
+
+            if (prefix.isEmpty()) break;
+        }
+
+        return prefix;
+    }
+
     private static String readLineWithAutocomplete() throws IOException {
 
         StringBuilder buffer = new StringBuilder();
@@ -148,37 +171,49 @@ public class Main {
                 return buffer.toString().trim();
             }
 
-            else if (c == '\t') {
-                List<String> matches=getMatches(buffer);
-                if(matches.isEmpty()){
-                    System.out.print('\007');
-                    System.out.flush();
-                    lastwithtab=false;
-                }
-                else if(matches.size()==1){
-                    buffer.setLength(0);
-                    buffer.append(matches.get(0)).append(" ");
-                    redraw(buffer);
-                    lastwithtab=false;
-                }
-                else{
-                    //multiple matches
-                    if(!lastwithtab){
-                        System.out.print('\007');
-                        System.out.flush();
-                        lastwithtab=true;
-                    }else{
-                        //second tab->print matches
-                        System.out.print("\r\n");
-                        Collections.sort(matches);
-                        System.out.println(String.join("  ",matches));
-                        //reprint prompt  and original buffer
-                        System.out.print("$ "+buffer.toString());
-                        System.out.flush();
-                        lastwithtab=false;
-                    }
-                }
-            }
+           else if (c == '\t') {
+
+    List<String> matches = getMatches(buffer);
+    Collections.sort(matches);
+
+    String current = buffer.toString();
+
+    if (matches.isEmpty()) {
+        System.out.print("\007");
+        System.out.flush();
+        lastwithtab = false;
+        continue;
+    }
+
+    if (matches.size() == 1) {
+        buffer.setLength(0);
+        buffer.append(matches.get(0)).append(" ");
+        redraw(buffer);
+        lastwithtab = false;
+        continue;
+    }
+
+    String lcp = longestCommonPrefix(matches);
+
+    if (!lcp.equals(current)) {
+        buffer.setLength(0);
+        buffer.append(lcp);
+        redraw(buffer);
+        lastwithtab = false;
+    } else {
+        if (!lastwithtab) {
+            System.out.print("\007");
+            System.out.flush();
+            lastwithtab = true;
+        } else {
+            System.out.print("\r\n");
+            System.out.println(String.join("  ", matches));
+            System.out.print("$ " + buffer.toString());
+            System.out.flush();
+            lastwithtab = false;
+        }
+    }
+}
 
             else if (c == 127) { // backspace
                 if (buffer.length() > 0) {
@@ -235,9 +270,10 @@ public class Main {
     }
 
     private static void redraw(StringBuilder buffer) {
-        print("$ " + buffer.toString() + " ");
-        print("$ " + buffer.toString());
-    }
+    System.out.print("\r$ " + buffer.toString());
+    System.out.flush();
+}
+
 
     private static void print(String msg) {
         System.out.print("\r" + msg);
