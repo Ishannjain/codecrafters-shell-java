@@ -2,7 +2,7 @@ import java.io.*;
 import java.util.*;
 
 public class Main {
-
+    private static boolean lastwithtab=false;
     private static final Set<String> BUILTINS =
             new HashSet<>(Arrays.asList("exit", "echo", "type", "pwd", "cd"));
 
@@ -149,10 +149,34 @@ public class Main {
             }
 
             else if (c == '\t') {
-                boolean matched=handleAutocomplete(buffer);
-                if(!matched){
+                List<String> matches=getMatches(buffer);
+                if(matches.isEmpty()){
                     System.out.print('\007');
                     System.out.flush();
+                    lastwithtab=false;
+                }
+                else if(matches.size()==1){
+                    buffer.setLength(0);
+                    buffer.append(matches.get(0)).append(" ");
+                    redraw(buffer);
+                    lastwithtab=false;
+                }
+                else{
+                    //multiple matches
+                    if(!lastwithtab){
+                        System.out.print('\007');
+                        System.out.flush();
+                        lastwithtab=true;
+                    }else{
+                        //second tab->print matches
+                        System.out.print("\r\n");
+                        Collections.sort(matches);
+                        System.out.println(String.join("  ",matches));
+                        //reprint prompt  and original buffer
+                        System.out.print("$ "+buffer.toString());
+                        System.out.flush();
+                        lastwithtab=false;
+                    }
                 }
             }
 
@@ -160,21 +184,24 @@ public class Main {
                 if (buffer.length() > 0) {
                     buffer.deleteCharAt(buffer.length() - 1);
                     redraw(buffer);
+                    lastwithtab=false;
+
                 }
             }
             else {
                 buffer.append(c);
                 System.out.print(c);
                 System.out.flush();
+                lastwithtab=false;
             }
         }
     }
 
-    private static boolean handleAutocomplete(StringBuilder buffer) {
+    private static List<String> getMatches(StringBuilder buffer) {
 
         String current = buffer.toString();
         if(current.contains(" ")){
-            return false;
+            return Collections.emptyList();
         }
         Set<String> matches=new HashSet<>();
         //builtin commands
@@ -203,15 +230,8 @@ public class Main {
             }
         }
 
-        //  If exactly one match → autocomplete
-        if (matches.size() == 1) {
-            String match = matches.iterator().next();
-            buffer.setLength(0);
-            buffer.append(match).append(" ");
-            redraw(buffer);
-            return true;
-        }
-        return false;
+
+        return new ArrayList<>(matches);
     }
 
     private static void redraw(StringBuilder buffer) {
