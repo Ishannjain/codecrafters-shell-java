@@ -151,7 +151,7 @@ public class Main {
             else if (c == '\t') {
                 boolean matched=handleAutocomplete(buffer);
                 if(!matched){
-                    System.out.println('\007');
+                    System.out.print('\007');
                     System.out.flush();
                 }
             }
@@ -173,17 +173,41 @@ public class Main {
     private static boolean handleAutocomplete(StringBuilder buffer) {
 
         String current = buffer.toString();
-
-        List<String> matches = new ArrayList<>();
+        if(current.contains(" ")){
+            return false;
+        }
+        Set<String> matches=new HashSet<>();
+        //builtin commands
         for (String cmd : BUILTINS) {
             if (cmd.startsWith(current)) {
                 matches.add(cmd);
             }
         }
+        // external executables command
+        String pathenv=System.getenv("PATH");
+        if(pathenv!=null){
+            String [] dirs=pathenv.split(File.pathSeparator);
+            for(String dir:dirs){
+                File folder=new File(dir);
+                if(!folder.isDirectory())continue;
+                File[] files=folder.listFiles();
+                if(files==null)continue;
+                for(File file:files){
+                    if(file.isFile() && file.canExecute()){
+                        String name=file.getName();
+                        if(name.startsWith(current)){
+                            matches.add(name);
+                        }
+                    }
+                }
+            }
+        }
 
+        //  If exactly one match → autocomplete
         if (matches.size() == 1) {
+            String match = matches.iterator().next();
             buffer.setLength(0);
-            buffer.append(matches.get(0)).append(" ");
+            buffer.append(match).append(" ");
             redraw(buffer);
             return true;
         }
