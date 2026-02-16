@@ -25,16 +25,54 @@ public class Main {
             List<String> tokens = parseInput(input);
             if (tokens.isEmpty()) continue;
 
-            String command = tokens.get(0);
-            List<String> argsList = tokens.subList(1, tokens.size());
+            // ---------------- REDIRECTION ----------------
+
+            String stdoutFile = null;
+            String stderrFile = null;
+            boolean appendStdout = false;
+            boolean appendStderr = false;
+
+            List<String> commandArgs = new ArrayList<>();
+
+            for (int i = 0; i < tokens.size(); i++) {
+                String t = tokens.get(i);
+
+                switch (t) {
+                    case ">", "1>":
+                        stdoutFile = tokens.get(++i);
+                        appendStdout = false;
+                        break;
+                    case ">>", "1>>":
+                        stdoutFile = tokens.get(++i);
+                        appendStdout = true;
+                        break;
+                    case "2>":
+                        stderrFile = tokens.get(++i);
+                        appendStderr = false;
+                        break;
+                    case "2>>":
+                        stderrFile = tokens.get(++i);
+                        appendStderr = true;
+                        break;
+                    default:
+                        commandArgs.add(t);
+                }
+            }
+
+            if (commandArgs.isEmpty()) continue;
+
+            String command = commandArgs.get(0);
+            List<String> argsList = commandArgs.subList(1, commandArgs.size());
             String joinedArgs = String.join(" ", argsList);
+
+            // ---------------- BUILTINS ----------------
 
             if (command.equals("exit")) {
                 break;
             }
 
             else if (command.equals("echo")) {
-                System.out.println(joinedArgs);
+                handleEcho(joinedArgs, stdoutFile, appendStdout, stderrFile);
             }
 
             else if (command.equals("pwd")) {
@@ -45,15 +83,53 @@ public class Main {
                 System.out.println(checkType(joinedArgs));
             }
 
+            else if (command.equals("cd")) {
+                currentDir = handleCd(argsList, currentDir);
+            }
+
+            // ---------------- EXTERNAL COMMAND ----------------
+
             else {
-                System.out.println(command + ": command not found");
+                try {
+
+                    ProcessBuilder pb = new ProcessBuilder(commandArgs);
+                    pb.directory(new File(currentDir));
+                    pb.redirectInput(ProcessBuilder.Redirect.INHERIT);
+
+                    // stdout
+                    if (stdoutFile != null) {
+                        File out = new File(stdoutFile);
+                        if (appendStdout)
+                            pb.redirectOutput(ProcessBuilder.Redirect.appendTo(out));
+                        else
+                            pb.redirectOutput(out);
+                    } else {
+                        pb.redirectOutput(ProcessBuilder.Redirect.INHERIT);
+                    }
+
+                    // stderr
+                    if (stderrFile != null) {
+                        File err = new File(stderrFile);
+                        if (appendStderr)
+                            pb.redirectError(ProcessBuilder.Redirect.appendTo(err));
+                        else
+                            pb.redirectError(err);
+                    } else {
+                        pb.redirectError(ProcessBuilder.Redirect.INHERIT);
+                    }
+
+                    pb.start().waitFor();
+
+                } catch (IOException e) {
+                    System.out.println(command + ": command not found");
+                }
             }
         }
 
         restoreTerminal();
     }
 
-    // ---------------- CHAR-BY-CHAR INPUT ----------------
+    // ---------------- RAW INPUT WITH AUTOCOMPLETE ----------------
 
     private static String readLineWithAutocomplete() throws IOException {
 
@@ -114,31 +190,76 @@ public class Main {
         print("$ " + buffer.toString());
     }
 
-    // ---------------- TERMINAL CONTROL ----------------
-
-    private static void setTerminalRawMode() {
-        try {
-            Runtime.getRuntime()
-                    .exec(new String[]{"/bin/sh", "-c",
-                            "stty -icanon -echo min 1 time 0"})
-                    .waitFor();
-        } catch (Exception ignored) {}
-    }
-
-    private static void restoreTerminal() {
-        try {
-            Runtime.getRuntime()
-                    .exec(new String[]{"/bin/sh", "-c", "stty sane"})
-                    .waitFor();
-        } catch (Exception ignored) {}
-    }
-
     private static void print(String msg) {
         System.out.print("\r" + msg);
         System.out.flush();
     }
 
-    // ---------------- YOUR EXISTING METHODS ----------------
+    // ---------------- TERMINAL CONTROL ----------------
+
+    private static void setTerminalRawMode() {
+        try {
+            Process p = new ProcessBuilder("/bin/sh", "-c",
+                    "stty -icanon -echo min 1 time 0")
+                    .redirectInput(ProcessBuilder.Redirect.INHERIT)
+                    .start();
+            p.waitFor();
+        } catch (Exception ignored) {}
+    }
+
+    private static void restoreTerminal() {
+        try {
+            Process p = new ProcessBuilder("/bin/sh", "-c",
+                    "stty sane")
+                    .redirectInput(ProcessBuilder.Redirect.INHERIT)
+                    .start();
+            p.waitFor();
+        } catch (Exception ignored) {}
+    }
+
+    // ---------------- BUILTIN HELPERS ----------------
+
+    private static void handleEcho(String text,
+                                   String stdoutFile,
+                                   boolean append,
+                                   String stderrFile) throws IOException {
+
+        if (stdoutFile != null) {
+            try (FileWriter fw = new FileWriter(stdoutFile, append)) {
+                fw.write(text + System.lineSeparator());
+            }
+        } else {
+            System.out.println(text);
+        }
+
+        if (stderrFile != null) {
+            new FileWriter(stderrFile, false).close();
+        }
+    }
+
+    private static String handleCd(List<String> args, String currentDir) throws IOException {
+
+        String target = args.isEmpty() ? System.getenv("HOME") : args.get(0);
+        String home = System.getenv("HOME");
+
+        if (target.equals("~")) {
+            target = home;
+        } else if (target.startsWith("~" + File.separator)) {
+            target = home + target.substring(1);
+        }
+
+        File dir = new File(target);
+        if (!dir.isAbsolute()) {
+            dir = new File(currentDir, target);
+        }
+
+        if (dir.exists() && dir.isDirectory()) {
+            return dir.getCanonicalPath();
+        } else {
+            System.out.println("cd: " + target + ": No such file or directory");
+            return currentDir;
+        }
+    }
 
     private static String checkType(String command) {
 
@@ -159,7 +280,55 @@ public class Main {
         return command + ": not found";
     }
 
+    // ---------------- PARSER WITH QUOTES ----------------
+
     private static List<String> parseInput(String input) {
-        return Arrays.asList(input.split(" "));
+
+        List<String> tokens = new ArrayList<>();
+        StringBuilder current = new StringBuilder();
+
+        boolean singleQuote = false;
+        boolean doubleQuote = false;
+        boolean escape = false;
+
+        for (int i = 0; i < input.length(); i++) {
+            char ch = input.charAt(i);
+
+            if (escape) {
+                current.append(ch);
+                escape = false;
+                continue;
+            }
+
+            if (ch == '\\' && !singleQuote) {
+                escape = true;
+                continue;
+            }
+
+            if (ch == '\'' && !doubleQuote) {
+                singleQuote = !singleQuote;
+                continue;
+            }
+
+            if (ch == '"' && !singleQuote) {
+                doubleQuote = !doubleQuote;
+                continue;
+            }
+
+            if (Character.isWhitespace(ch) && !singleQuote && !doubleQuote) {
+                if (current.length() > 0) {
+                    tokens.add(current.toString());
+                    current.setLength(0);
+                }
+            } else {
+                current.append(ch);
+            }
+        }
+
+        if (current.length() > 0) {
+            tokens.add(current.toString());
+        }
+
+        return tokens;
     }
 }
