@@ -136,3 +136,101 @@ The shell supports redirecting standard error (file descriptor 2) to a file.
 ### Example
 ```sh
 cat missing 2> error.txt
+
+# Java Shell Implementation
+
+This project is a minimal Unix-like shell written in Java.
+
+It supports:
+- Built-in commands
+- External command execution
+- PATH lookup
+- Output redirection
+- Error redirection
+- Append redirection
+- Basic quote parsing
+- Built-in command autocomplete (TAB)
+- Raw terminal input mode
+
+---
+
+## 🚀 Features
+
+### Built-in Commands
+- `exit` — Exit the shell
+- `echo` — Print text
+- `pwd` — Print current working directory
+- `cd` — Change directory
+- `type` — Identify command type
+
+---
+
+### 🔄 Redirection Support
+
+| Operator | Meaning |
+|----------|----------|
+| `>`      | Redirect stdout |
+| `>>`     | Append stdout |
+| `2>`     | Redirect stderr |
+| `2>>`    | Append stderr |
+
+Example:
+```bash
+echo hello > file.txt
+ls missing 2>> errors.txt
+```
+
+---
+
+### 🧠 Autocomplete
+
+Press `TAB` to autocomplete built-in commands.
+
+Example:
+```
+$ ec<TAB>
+$ echo 
+```
+
+---
+
+### 🧩 External Commands
+
+Commands not recognized as built-ins are executed using:
+```
+ProcessBuilder
+```
+
+The shell automatically searches using the system `PATH`.
+
+---
+
+## 🛠 How It Works
+
+1. Terminal is switched to raw mode using `stty`
+2. Shell reads input character-by-character
+3. Input is parsed into tokens
+4. Redirection operators are extracted
+5. Built-in commands are executed internally
+6. External commands are executed using `ProcessBuilder`
+7. Output redirection is applied
+8. Loop continues until `exit`
+
+---
+
+## 📦 Compile & Run
+
+```bash
+javac Main.java
+java Main
+```
+
+---
+
+## 📌 Notes
+
+- Designed for Unix-like systems
+- Uses `stty` for raw terminal control
+- Compatible with Codecrafters shell challenge
+
+---

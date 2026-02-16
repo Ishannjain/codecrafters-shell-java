@@ -149,7 +149,11 @@ public class Main {
             }
 
             else if (c == '\t') {
-                handleAutocomplete(buffer);
+                boolean matched=handleAutocomplete(buffer);
+                if(!matched){
+                    System.out.println('\007');
+                    System.out.flush();
+                }
             }
 
             else if (c == 127) { // backspace
@@ -158,7 +162,6 @@ public class Main {
                     redraw(buffer);
                 }
             }
-
             else {
                 buffer.append(c);
                 System.out.print(c);
@@ -167,7 +170,7 @@ public class Main {
         }
     }
 
-    private static void handleAutocomplete(StringBuilder buffer) {
+    private static boolean handleAutocomplete(StringBuilder buffer) {
 
         String current = buffer.toString();
 
@@ -182,7 +185,9 @@ public class Main {
             buffer.setLength(0);
             buffer.append(matches.get(0)).append(" ");
             redraw(buffer);
+            return true;
         }
+        return false;
     }
 
     private static void redraw(StringBuilder buffer) {
