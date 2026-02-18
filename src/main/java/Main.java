@@ -1,6 +1,5 @@
 import java.io.*;
 import java.util.*;
-
 public class Main {
     private static boolean lastwithtab=false;
     private static final Set<String> BUILTINS =
@@ -24,7 +23,11 @@ public class Main {
 
             List<String> tokens = parseInput(input);
             if (tokens.isEmpty()) continue;
-
+            //pipeline check
+            if(tokens.contains("|")){
+                handlepipeline(tokens,currentDir);
+                continue;
+            }
             // ---------------- REDIRECTION ----------------
 
             String stdoutFile = null;
@@ -128,6 +131,70 @@ public class Main {
 
         restoreTerminal();
     }
+    // ---------------Handle Pipelines-----------
+    private static void handlepipeline(List<String> tokens, String currentDir) {
+
+    int pipeIdx = tokens.indexOf("|");
+
+    List<String> leftCmd = tokens.subList(0, pipeIdx);
+    List<String> rightCmd = tokens.subList(pipeIdx + 1, tokens.size());
+
+    if (leftCmd.isEmpty() || rightCmd.isEmpty()) return;
+
+    try {
+        ProcessBuilder pb1 = new ProcessBuilder(leftCmd);
+        ProcessBuilder pb2 = new ProcessBuilder(rightCmd);
+
+        pb1.directory(new File(currentDir));
+        pb2.directory(new File(currentDir));
+
+        pb1.redirectError(ProcessBuilder.Redirect.INHERIT);
+        pb2.redirectError(ProcessBuilder.Redirect.INHERIT);
+
+        Process p1 = pb1.start();
+        Process p2 = pb2.start();
+
+        // 🔥 Pump thread: p1 stdout → p2 stdin
+        Thread pump = new Thread(() -> {
+            try (
+                InputStream in = p1.getInputStream();
+                OutputStream out = p2.getOutputStream()
+            ) {
+                byte[] buffer = new byte[8192];
+                int len;
+                while ((len = in.read(buffer)) != -1) {
+                    out.write(buffer, 0, len);
+                    out.flush();
+                }
+            } catch (IOException ignored) {
+            }
+        });
+
+        pump.start();
+
+        // Print output of second command
+        try (InputStream p2Out = p2.getInputStream()) {
+            byte[] buffer = new byte[8192];
+            int len;
+            while ((len = p2Out.read(buffer)) != -1) {
+                System.out.write(buffer, 0, len);
+                System.out.flush();
+            }
+        }
+
+        // Wait for right side first
+        p2.waitFor();
+
+        // If right side exited early (like head), destroy left
+        p1.destroy();
+
+        pump.join();
+        p1.waitFor();
+
+    } catch (IOException | InterruptedException e) {
+        e.printStackTrace();
+    }
+}
 
     // ---------------- RAW INPUT WITH AUTOCOMPLETE ----------------
 
