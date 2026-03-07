@@ -69,13 +69,44 @@ public class Main {
             out.printf("%5d %s%n", i+1, HISTORY.get(i));
         }
     }
+    private static void loadHistoryFromHistFile() {
+
+    String histFile = System.getenv("HISTFILE");
+
+    if (histFile == null || histFile.isEmpty()) {
+        return;
+    }
+
+    File file = new File(histFile);
+
+    if (!file.exists()) {
+        return;
+    }
+
+    try (BufferedReader br = new BufferedReader(new FileReader(file))) {
+
+        String line;
+        while ((line = br.readLine()) != null) {
+
+            line = line.trim();
+
+            if (!line.isEmpty()) {
+                HISTORY.add(line);
+            }
+        }
+
+        historySavedIndex = HISTORY.size();
+
+    } catch (IOException ignored) {
+    }
+}
     public static void main(String[] args) throws Exception {
 
         setTerminalRawMode();
         Runtime.getRuntime().addShutdownHook(new Thread(Main::restoreTerminal));
 
         String currentDir = System.getProperty("user.dir");
-
+        loadHistoryFromHistFile();
         while (true) {
 
             String input = readLineWithAutocomplete();
