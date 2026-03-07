@@ -2,12 +2,17 @@ import java.io.*;
 import java.util.*;
 public class Main {
     private static boolean lastwithtab=false;
+    private  static final  List<String> HISTORY=new ArrayList<>();
     private static final Set<String> BUILTINS =
-            new HashSet<>(Arrays.asList("exit", "echo", "type", "pwd", "cd"));
+            new HashSet<>(Arrays.asList("exit", "echo", "type", "pwd", "cd","history"));
 
     private static final BufferedReader reader =
             new BufferedReader(new InputStreamReader(System.in));
-
+    private static void runHistory(PrintStream out){
+        for(int i=0;i<HISTORY.size();i++){
+            out.printf("%5d %s%n", i+1, HISTORY.get(i));
+        }
+    }
     public static void main(String[] args) throws Exception {
 
         setTerminalRawMode();
@@ -20,7 +25,9 @@ public class Main {
             String input = readLineWithAutocomplete();
             if (input == null) break;
             if (input.isEmpty()) continue;
-
+            if(input!=null && !input.isBlank()){
+                HISTORY.add(input);
+            }
             List<String> tokens = parseInput(input);
             if (tokens.isEmpty()) continue;
             //pipeline check
@@ -28,6 +35,7 @@ public class Main {
                 handlepipeline(tokens,currentDir);
                 continue;
             }
+        
             // ---------------- REDIRECTION ----------------
 
             String stdoutFile = null;
@@ -88,6 +96,9 @@ public class Main {
 
             else if (command.equals("cd")) {
                 currentDir = handleCd(argsList, currentDir);
+            }
+            else if (command.equals("history")) {
+                runHistory(System.out);
             }
 
             // ---------------- EXTERNAL COMMAND ----------------
@@ -179,42 +190,15 @@ private static byte[] runBuiltin(List<String> cmd, byte[] input, String currentD
         case "cd":
             handleCd(args, currentDir);
             break;
+        case "history": 
+            runHistory(ps);
+            break;
     }
 
     ps.flush();
     return out.toByteArray();
 }
-// private static byte[] runExternal(List<String> cmd, byte[] input, String currentDir) throws Exception {
 
-//     ProcessBuilder pb = new ProcessBuilder(cmd);
-//     pb.directory(new File(currentDir));
-//     pb.redirectError(ProcessBuilder.Redirect.INHERIT);
-
-//     Process p = pb.start();
-
-//     if (input != null) {
-//         try (OutputStream os = p.getOutputStream()) {
-//             os.write(input);
-//         }
-//     }
-
-//     ByteArrayOutputStream result = new ByteArrayOutputStream();
-
-//     try (InputStream is = p.getInputStream()) {
-
-//         byte[] buffer = new byte[8192];
-//         int len;
-
-//         while ((len = is.read(buffer)) != -1) {
-//             result.write(buffer, 0, len);
-//         }
-//     }
-
-//     p.waitFor();
-
-//     return result.toByteArray();
-// }     // ---------------Handle Pipelines-----------
-//  
 private static void handlepipeline(List<String> tokens, String currentDir) {
 
     List<List<String>> commands = splitPipeline(tokens);
