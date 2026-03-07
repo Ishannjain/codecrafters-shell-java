@@ -131,8 +131,102 @@ public class Main {
 
         restoreTerminal();
     }
-    // ---------------Handle Pipelines-----------
-    private static void handlepipeline(List<String> tokens, String currentDir) {
+    // to split the pipeline into separate commands, e.g. "ls -l | grep txt" → [["ls", "-l"], ["grep", "txt"]]
+    // ---------------- PIPELINE SPLIT ----------------
+
+// private static List<List<String>> splitPipeline(List<String> tokens) {
+
+//     List<List<String>> commands = new ArrayList<>();
+//     List<String> current = new ArrayList<>();
+
+//     for (String t : tokens) {
+
+//         if (t.equals("|")) {
+//             if (!current.isEmpty()) {
+//                 commands.add(new ArrayList<>(current));
+//                 current.clear();
+//             }
+//         } else {
+//             current.add(t);
+//         }
+//     }
+
+//     if (!current.isEmpty()) {
+//         commands.add(current);
+//     }
+
+//     return commands;
+// }
+
+private static byte[] runBuiltin(List<String> cmd, byte[] input, String currentDir) throws Exception {
+
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    PrintStream ps = new PrintStream(out);
+
+    String command = cmd.get(0);
+    List<String> args = cmd.subList(1, cmd.size());
+
+    switch (command) {
+
+        case "echo":
+            ps.println(String.join(" ", args));
+            break;
+
+        case "pwd":
+            ps.println(currentDir);
+            break;
+
+        case "type":
+            if (!args.isEmpty()) {
+                ps.println(checkType(args.get(0)));
+            }
+            break;
+
+        case "cd":
+            handleCd(args, currentDir);
+            break;
+
+        case "exit":
+            System.exit(0);
+            break;
+    }
+
+    ps.flush();
+    return out.toByteArray();
+}
+// private static byte[] runExternal(List<String> cmd, byte[] input, String currentDir) throws Exception {
+
+//     ProcessBuilder pb = new ProcessBuilder(cmd);
+//     pb.directory(new File(currentDir));
+
+//     Process p = pb.start();
+
+//     if (input != null) {
+//         try (OutputStream os = p.getOutputStream()) {
+//             os.write(input);
+//         }
+//     } else {
+//         p.getOutputStream().close();
+//     }
+
+//     ByteArrayOutputStream result = new ByteArrayOutputStream();
+
+//     try (InputStream is = p.getInputStream()) {
+
+//         byte[] buffer = new byte[8192];
+//         int len;
+
+//         while ((len = is.read(buffer)) != -1) {
+//             result.write(buffer, 0, len);
+//         }
+//     }
+
+//     p.waitFor();
+
+//     return result.toByteArray();
+// }
+//     // ---------------Handle Pipelines-----------
+   private static void handlepipeline(List<String> tokens, String currentDir) {
 
     int pipeIdx = tokens.indexOf("|");
 
@@ -141,7 +235,78 @@ public class Main {
 
     if (leftCmd.isEmpty() || rightCmd.isEmpty()) return;
 
+    boolean leftBuiltin = BUILTINS.contains(leftCmd.get(0));
+    boolean rightBuiltin = BUILTINS.contains(rightCmd.get(0));
+
     try {
+
+        // BUILTIN | BUILTIN
+        if (leftBuiltin && rightBuiltin) {
+
+            byte[] leftOut = runBuiltin(leftCmd, null, currentDir);
+            byte[] rightOut = runBuiltin(rightCmd, leftOut, currentDir);
+
+            System.out.write(rightOut);
+            System.out.flush();
+            return;
+        }
+
+        // BUILTIN | EXTERNAL
+        if (leftBuiltin) {
+
+            byte[] leftOut = runBuiltin(leftCmd, null, currentDir);
+
+            ProcessBuilder pb = new ProcessBuilder(rightCmd);
+            pb.directory(new File(currentDir));
+            pb.redirectError(ProcessBuilder.Redirect.INHERIT);
+
+            Process p = pb.start();
+
+            try (OutputStream os = p.getOutputStream()) {
+                os.write(leftOut);
+            }
+
+            try (InputStream in = p.getInputStream()) {
+                byte[] buffer = new byte[8192];
+                int len;
+                while ((len = in.read(buffer)) != -1) {
+                    System.out.write(buffer, 0, len);
+                }
+            }
+
+            p.waitFor();
+            return;
+        }
+
+        // EXTERNAL | BUILTIN
+        if (rightBuiltin) {
+
+            ProcessBuilder pb = new ProcessBuilder(leftCmd);
+            pb.directory(new File(currentDir));
+            pb.redirectError(ProcessBuilder.Redirect.INHERIT);
+
+            Process p = pb.start();
+
+            ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+
+            try (InputStream in = p.getInputStream()) {
+                byte[] data = new byte[8192];
+                int len;
+                while ((len = in.read(data)) != -1) {
+                    buffer.write(data, 0, len);
+                }
+            }
+
+            p.waitFor();
+
+            byte[] result = runBuiltin(rightCmd, buffer.toByteArray(), currentDir);
+
+            System.out.write(result);
+            System.out.flush();
+            return;
+        }
+
+        // EXTERNAL | EXTERNAL  (STREAMING — required for tail -f)
         ProcessBuilder pb1 = new ProcessBuilder(leftCmd);
         ProcessBuilder pb2 = new ProcessBuilder(rightCmd);
 
@@ -154,49 +319,43 @@ public class Main {
         Process p1 = pb1.start();
         Process p2 = pb2.start();
 
-        // 🔥 Pump thread: p1 stdout → p2 stdin
         Thread pump = new Thread(() -> {
             try (
                 InputStream in = p1.getInputStream();
                 OutputStream out = p2.getOutputStream()
             ) {
-                byte[] buffer = new byte[8192];
+                byte[] buf = new byte[8192];
                 int len;
-                while ((len = in.read(buffer)) != -1) {
-                    out.write(buffer, 0, len);
+
+                while ((len = in.read(buf)) != -1) {
+                    out.write(buf, 0, len);
                     out.flush();
                 }
-            } catch (IOException ignored) {
-            }
+            } catch (IOException ignored) {}
         });
 
         pump.start();
 
-        // Print output of second command
-        try (InputStream p2Out = p2.getInputStream()) {
-            byte[] buffer = new byte[8192];
+        try (InputStream in = p2.getInputStream()) {
+            byte[] buf = new byte[8192];
             int len;
-            while ((len = p2Out.read(buffer)) != -1) {
-                System.out.write(buffer, 0, len);
+
+            while ((len = in.read(buf)) != -1) {
+                System.out.write(buf, 0, len);
                 System.out.flush();
             }
         }
 
-        // Wait for right side first
         p2.waitFor();
-
-        // If right side exited early (like head), destroy left
         p1.destroy();
 
         pump.join();
         p1.waitFor();
 
-    } catch (IOException | InterruptedException e) {
+    } catch (Exception e) {
         e.printStackTrace();
     }
-}
-
-    // ---------------- RAW INPUT WITH AUTOCOMPLETE ----------------
+}   // ---------------- RAW INPUT WITH AUTOCOMPLETE ----------------
 
     private static String longestCommonPrefix(List<String> list) {
         if (list.isEmpty()) return "";
