@@ -134,30 +134,24 @@ public class Main {
     // to split the pipeline into separate commands, e.g. "ls -l | grep txt" → [["ls", "-l"], ["grep", "txt"]]
     // ---------------- PIPELINE SPLIT ----------------
 
-// private static List<List<String>> splitPipeline(List<String> tokens) {
+private static List<List<String>> splitPipeline(List<String> tokens) {
 
-//     List<List<String>> commands = new ArrayList<>();
-//     List<String> current = new ArrayList<>();
+    List<List<String>> commands = new ArrayList<>();
+    List<String> current = new ArrayList<>();
 
-//     for (String t : tokens) {
+    for (String t : tokens) {
+        if (t.equals("|")) {
+            commands.add(new ArrayList<>(current));
+            current.clear();
+        } else {
+            current.add(t);
+        }
+    }
 
-//         if (t.equals("|")) {
-//             if (!current.isEmpty()) {
-//                 commands.add(new ArrayList<>(current));
-//                 current.clear();
-//             }
-//         } else {
-//             current.add(t);
-//         }
-//     }
+    commands.add(current);
 
-//     if (!current.isEmpty()) {
-//         commands.add(current);
-//     }
-
-//     return commands;
-// }
-
+    return commands;
+}
 private static byte[] runBuiltin(List<String> cmd, byte[] input, String currentDir) throws Exception {
 
     ByteArrayOutputStream out = new ByteArrayOutputStream();
@@ -185,10 +179,6 @@ private static byte[] runBuiltin(List<String> cmd, byte[] input, String currentD
         case "cd":
             handleCd(args, currentDir);
             break;
-
-        case "exit":
-            System.exit(0);
-            break;
     }
 
     ps.flush();
@@ -198,6 +188,7 @@ private static byte[] runBuiltin(List<String> cmd, byte[] input, String currentD
 
 //     ProcessBuilder pb = new ProcessBuilder(cmd);
 //     pb.directory(new File(currentDir));
+//     pb.redirectError(ProcessBuilder.Redirect.INHERIT);
 
 //     Process p = pb.start();
 
@@ -205,8 +196,6 @@ private static byte[] runBuiltin(List<String> cmd, byte[] input, String currentD
 //         try (OutputStream os = p.getOutputStream()) {
 //             os.write(input);
 //         }
-//     } else {
-//         p.getOutputStream().close();
 //     }
 
 //     ByteArrayOutputStream result = new ByteArrayOutputStream();
@@ -224,140 +213,117 @@ private static byte[] runBuiltin(List<String> cmd, byte[] input, String currentD
 //     p.waitFor();
 
 //     return result.toByteArray();
-// }
-//     // ---------------Handle Pipelines-----------
-   private static void handlepipeline(List<String> tokens, String currentDir) {
+// }     // ---------------Handle Pipelines-----------
+//  
+private static void handlepipeline(List<String> tokens, String currentDir) {
 
-    int pipeIdx = tokens.indexOf("|");
-
-    List<String> leftCmd = tokens.subList(0, pipeIdx);
-    List<String> rightCmd = tokens.subList(pipeIdx + 1, tokens.size());
-
-    if (leftCmd.isEmpty() || rightCmd.isEmpty()) return;
-
-    boolean leftBuiltin = BUILTINS.contains(leftCmd.get(0));
-    boolean rightBuiltin = BUILTINS.contains(rightCmd.get(0));
+    List<List<String>> commands = splitPipeline(tokens);
 
     try {
 
-        // BUILTIN | BUILTIN
-        if (leftBuiltin && rightBuiltin) {
+        Process prevProcess = null;
+        byte[] builtinInput = null;
 
-            byte[] leftOut = runBuiltin(leftCmd, null, currentDir);
-            byte[] rightOut = runBuiltin(rightCmd, leftOut, currentDir);
+        for (int i = 0; i < commands.size(); i++) {
 
-            System.out.write(rightOut);
-            System.out.flush();
-            return;
-        }
+            List<String> cmd = commands.get(i);
+            String command = cmd.get(0);
 
-        // BUILTIN | EXTERNAL
-        if (leftBuiltin) {
+            boolean builtin = BUILTINS.contains(command);
 
-            byte[] leftOut = runBuiltin(leftCmd, null, currentDir);
+            // ---------- BUILTIN ----------
+            if (builtin) {
 
-            ProcessBuilder pb = new ProcessBuilder(rightCmd);
+                if (prevProcess != null) {
+
+                    ByteArrayOutputStream buf = new ByteArrayOutputStream();
+
+                    try (InputStream in = prevProcess.getInputStream()) {
+                        byte[] data = new byte[8192];
+                        int len;
+                        while ((len = in.read(data)) != -1) {
+                            buf.write(data, 0, len);
+                        }
+                    }
+
+                    prevProcess.waitFor();
+                    builtinInput = buf.toByteArray();
+                    prevProcess = null;
+                }
+
+                builtinInput = runBuiltin(cmd, builtinInput, currentDir);
+                continue;
+            }
+
+            // ---------- EXTERNAL ----------
+            ProcessBuilder pb = new ProcessBuilder(cmd);
             pb.directory(new File(currentDir));
             pb.redirectError(ProcessBuilder.Redirect.INHERIT);
 
             Process p = pb.start();
 
-            try (OutputStream os = p.getOutputStream()) {
-                os.write(leftOut);
-            }
-
-            try (InputStream in = p.getInputStream()) {
-                byte[] buffer = new byte[8192];
-                int len;
-                while ((len = in.read(buffer)) != -1) {
-                    System.out.write(buffer, 0, len);
+            if (builtinInput != null) {
+                try (OutputStream os = p.getOutputStream()) {
+                    os.write(builtinInput);
                 }
+                builtinInput = null;
             }
 
-            p.waitFor();
-            return;
+            if (prevProcess != null) {
+
+                Process left = prevProcess;
+                Process right = p;
+
+                Thread pump = new Thread(() -> {
+                    try (
+                        InputStream in = left.getInputStream();
+                        OutputStream out = right.getOutputStream()
+                    ) {
+                        byte[] buf = new byte[8192];
+                        int len;
+
+                        while ((len = in.read(buf)) != -1) {
+                            out.write(buf, 0, len);
+                            out.flush();
+                        }
+
+                    } catch (IOException ignored) {}
+                });
+
+                pump.start();
+            }
+
+            prevProcess = p;
         }
 
-        // EXTERNAL | BUILTIN
-        if (rightBuiltin) {
+        // ---------- PRINT FINAL OUTPUT ----------
 
-            ProcessBuilder pb = new ProcessBuilder(leftCmd);
-            pb.directory(new File(currentDir));
-            pb.redirectError(ProcessBuilder.Redirect.INHERIT);
+        if (prevProcess != null) {
 
-            Process p = pb.start();
+            try (InputStream in = prevProcess.getInputStream()) {
 
-            ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-
-            try (InputStream in = p.getInputStream()) {
-                byte[] data = new byte[8192];
-                int len;
-                while ((len = in.read(data)) != -1) {
-                    buffer.write(data, 0, len);
-                }
-            }
-
-            p.waitFor();
-
-            byte[] result = runBuiltin(rightCmd, buffer.toByteArray(), currentDir);
-
-            System.out.write(result);
-            System.out.flush();
-            return;
-        }
-
-        // EXTERNAL | EXTERNAL  (STREAMING — required for tail -f)
-        ProcessBuilder pb1 = new ProcessBuilder(leftCmd);
-        ProcessBuilder pb2 = new ProcessBuilder(rightCmd);
-
-        pb1.directory(new File(currentDir));
-        pb2.directory(new File(currentDir));
-
-        pb1.redirectError(ProcessBuilder.Redirect.INHERIT);
-        pb2.redirectError(ProcessBuilder.Redirect.INHERIT);
-
-        Process p1 = pb1.start();
-        Process p2 = pb2.start();
-
-        Thread pump = new Thread(() -> {
-            try (
-                InputStream in = p1.getInputStream();
-                OutputStream out = p2.getOutputStream()
-            ) {
                 byte[] buf = new byte[8192];
                 int len;
 
                 while ((len = in.read(buf)) != -1) {
-                    out.write(buf, 0, len);
-                    out.flush();
+                    System.out.write(buf, 0, len);
+                    System.out.flush();
                 }
-            } catch (IOException ignored) {}
-        });
-
-        pump.start();
-
-        try (InputStream in = p2.getInputStream()) {
-            byte[] buf = new byte[8192];
-            int len;
-
-            while ((len = in.read(buf)) != -1) {
-                System.out.write(buf, 0, len);
-                System.out.flush();
             }
+
+            prevProcess.waitFor();
+
+        } else if (builtinInput != null) {
+
+            System.out.write(builtinInput);
+            System.out.flush();
         }
-
-        p2.waitFor();
-        p1.destroy();
-
-        pump.join();
-        p1.waitFor();
 
     } catch (Exception e) {
         e.printStackTrace();
     }
-}   // ---------------- RAW INPUT WITH AUTOCOMPLETE ----------------
-
-    private static String longestCommonPrefix(List<String> list) {
+}
+private static String longestCommonPrefix(List<String> list) {
         if (list.isEmpty()) return "";
 
         String prefix = list.get(0);
