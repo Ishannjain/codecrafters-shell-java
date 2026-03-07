@@ -30,6 +30,17 @@ public class Main {
             readHistoryFromFile(file);
             return;
         }
+        else if(args.size()>=2 && args.get(0).equals("-w")){
+            String file=args.get(1);
+            try(PrintWriter pw=new PrintWriter(new FileWriter(file))){
+                for(String cmd:HISTORY){
+                    pw.println(cmd);
+                }
+            }catch(IOException e){
+                out.println("history: " + file + ": No such file or directory");
+            }
+            return;
+        }
         int start=0;
         if(!args.isEmpty()){
             try{

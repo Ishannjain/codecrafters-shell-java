@@ -234,3 +234,9 @@ java Main
 - Compatible with Codecrafters shell challenge
 
 ---
+
+###
+To run the shell 
+# cd src/main/java
+# Javac Main.java
+# java Main
