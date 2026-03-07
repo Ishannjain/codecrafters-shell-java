@@ -5,7 +5,7 @@ public class Main {
     private  static final  List<String> HISTORY=new ArrayList<>();
     private static final Set<String> BUILTINS =
             new HashSet<>(Arrays.asList("exit", "echo", "type", "pwd", "cd","history"));
-
+    static int historyIndex=-1;
     private static final BufferedReader reader =
             new BufferedReader(new InputStreamReader(System.in));
     private static void runHistory(PrintStream out,List<String> args){
@@ -317,7 +317,7 @@ private static void handlepipeline(List<String> tokens, String currentDir) {
         e.printStackTrace();
     }
 }
-private static String longestCommonPrefix(List<String> list) {
+    private static String longestCommonPrefix(List<String> list) {
         if (list.isEmpty()) return "";
 
         String prefix = list.get(0);
@@ -359,47 +359,47 @@ private static String longestCommonPrefix(List<String> list) {
 
            else if (c == '\t') {
 
-    List<String> matches = getMatches(buffer);
-    Collections.sort(matches);
+            List<String> matches = getMatches(buffer);
+            Collections.sort(matches);
 
-    String current = buffer.toString();
+            String current = buffer.toString();
 
-    if (matches.isEmpty()) {
-        System.out.print("\007");
-        System.out.flush();
-        lastwithtab = false;
-        continue;
-    }
+            if (matches.isEmpty()) {
+                System.out.print("\007");
+                System.out.flush();
+                lastwithtab = false;
+                continue;
+            }
 
-    if (matches.size() == 1) {
-        buffer.setLength(0);
-        buffer.append(matches.get(0)).append(" ");
-        redraw(buffer);
-        lastwithtab = false;
-        continue;
-    }
+            if (matches.size() == 1) {
+                buffer.setLength(0);
+                buffer.append(matches.get(0)).append(" ");
+                redraw(buffer);
+                lastwithtab = false;
+                continue;
+            }
 
-    String lcp = longestCommonPrefix(matches);
+            String lcp = longestCommonPrefix(matches);
 
-    if (!lcp.equals(current)) {
-        buffer.setLength(0);
-        buffer.append(lcp);
-        redraw(buffer);
-        lastwithtab = false;
-    } else {
-        if (!lastwithtab) {
-            System.out.print("\007");
-            System.out.flush();
-            lastwithtab = true;
-        } else {
-            System.out.print("\r\n");
-            System.out.println(String.join("  ", matches));
-            System.out.print("$ " + buffer.toString());
-            System.out.flush();
-            lastwithtab = false;
+            if (!lcp.equals(current)) {
+                buffer.setLength(0);
+                buffer.append(lcp);
+                redraw(buffer);
+                lastwithtab = false;
+            } else {
+                if (!lastwithtab) {
+                    System.out.print("\007");
+                    System.out.flush();
+                    lastwithtab = true;
+                } else {
+                    System.out.print("\r\n");
+                    System.out.println(String.join("  ", matches));
+                    System.out.print("$ " + buffer.toString());
+                    System.out.flush();
+                    lastwithtab = false;
+                }
+            }
         }
-    }
-}
 
             else if (c == 127) { // backspace
                 if (buffer.length() > 0) {
@@ -407,6 +407,36 @@ private static String longestCommonPrefix(List<String> list) {
                     redraw(buffer);
                     lastwithtab=false;
 
+                }
+            }
+            else if(c==27){
+                int next1=reader.read();
+                if(next1==91){ // arrow keys start with ESC [
+                    int next2=reader.read();
+                    if(next2==65){ // up arrow
+                        if(historyIndex==-1){
+                            historyIndex=HISTORY.size()-1;
+                        }else if(historyIndex>0){
+                            historyIndex--;
+                        }
+                        if(historyIndex>=0 && historyIndex<HISTORY.size()){
+                            buffer.setLength(0);
+                            buffer.append(HISTORY.get(historyIndex));
+                            redraw(buffer);
+                        }
+                    }else if(next2==66){ // down arrow
+                        if(historyIndex!=-1){
+                            historyIndex++;
+                            if(historyIndex>=HISTORY.size()){
+                                historyIndex=-1;
+                                buffer.setLength(0);
+                            }else{
+                                buffer.setLength(0);
+                                buffer.append(HISTORY.get(historyIndex));
+                            }
+                            redraw(buffer);
+                        }
+                    }
                 }
             }
             else {
