@@ -6,6 +6,7 @@ public class Main {
     private static final Set<String> BUILTINS =
             new HashSet<>(Arrays.asList("exit", "echo", "type", "pwd", "cd","history"));
     static int historyIndex=-1;
+    static int historySavedIndex=0;
     private static final BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
     private static void readHistoryFromFile(String path) {
 
@@ -36,6 +37,19 @@ public class Main {
                 for(String cmd:HISTORY){
                     pw.println(cmd);
                 }
+            }catch(IOException e){
+                out.println("history: " + file + ": No such file or directory");
+            }
+            return;
+        }
+        else if(args.size()>=2 && args.get(0).equals("-a")){
+            String file=args.get(1);
+            try(PrintWriter pw=new PrintWriter(new FileWriter(file,true))){
+                for(int i = historySavedIndex; i < HISTORY.size(); i++){
+            pw.println(HISTORY.get(i));
+        }
+
+        historySavedIndex = HISTORY.size();
             }catch(IOException e){
                 out.println("history: " + file + ": No such file or directory");
             }
