@@ -6,9 +6,30 @@ public class Main {
     private static final Set<String> BUILTINS =
             new HashSet<>(Arrays.asList("exit", "echo", "type", "pwd", "cd","history"));
     static int historyIndex=-1;
-    private static final BufferedReader reader =
-            new BufferedReader(new InputStreamReader(System.in));
+    private static final BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+    private static void readHistoryFromFile(String path) {
+
+    try (BufferedReader br = new BufferedReader(new FileReader(path))) {
+
+        String line;
+        while ((line = br.readLine()) != null) {
+
+            line = line.trim();
+            if (!line.isEmpty()) {
+                HISTORY.add(line);
+            }
+        }
+
+    } catch (IOException e) {
+        System.err.println("history: " + path + ": No such file or directory");
+    }
+}
     private static void runHistory(PrintStream out,List<String> args){
+        if(args.size()>=2 && args.get(0).equals("-r")){
+            String file=args.get(1);
+            readHistoryFromFile(file);
+            return;
+        }
         int start=0;
         if(!args.isEmpty()){
             try{
