@@ -443,11 +443,13 @@ private static void handlepipeline(List<String> tokens, String currentDir) {
                 buffer.append(c);
                 System.out.print(c);
                 System.out.flush();
+                historyIndex=-1;
                 lastwithtab=false;
             }
         }
     }
 
+   
     private static List<String> getMatches(StringBuilder buffer) {
 
         String current = buffer.toString();
@@ -485,10 +487,14 @@ private static void handlepipeline(List<String> tokens, String currentDir) {
         return new ArrayList<>(matches);
     }
 
+    
     private static void redraw(StringBuilder buffer) {
-    System.out.print("\r$ " + buffer.toString());
+    System.out.print("\r");           // move cursor to start
+    System.out.print("\033[K");       // clear line
+    System.out.print("$ " + buffer.toString());
     System.out.flush();
 }
+
 
 
     private static void print(String msg) {
