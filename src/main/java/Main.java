@@ -8,8 +8,18 @@ public class Main {
 
     private static final BufferedReader reader =
             new BufferedReader(new InputStreamReader(System.in));
-    private static void runHistory(PrintStream out){
-        for(int i=0;i<HISTORY.size();i++){
+    private static void runHistory(PrintStream out,List<String> args){
+        int start=0;
+        if(!args.isEmpty()){
+            try{
+                int n=Integer.parseInt(args.get(0));
+                start=Math.max(HISTORY.size()-n,0);
+            }catch(NumberFormatException e){
+                out.println("history: invalid number: " + args.get(0));
+                return;
+            }
+        }
+        for(int i=start;i<HISTORY.size();i++){
             out.printf("%5d %s%n", i+1, HISTORY.get(i));
         }
     }
@@ -98,7 +108,7 @@ public class Main {
                 currentDir = handleCd(argsList, currentDir);
             }
             else if (command.equals("history")) {
-                runHistory(System.out);
+                runHistory(System.out,argsList);
             }
 
             // ---------------- EXTERNAL COMMAND ----------------
@@ -191,7 +201,7 @@ private static byte[] runBuiltin(List<String> cmd, byte[] input, String currentD
             handleCd(args, currentDir);
             break;
         case "history": 
-            runHistory(ps);
+            runHistory(ps,args);
             break;
     }
 
