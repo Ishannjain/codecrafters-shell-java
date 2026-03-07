@@ -166,6 +166,7 @@ public class Main {
             // ---------------- BUILTINS ----------------
 
             if (command.equals("exit")) {
+                    saveHistoryToHistFile();
                 break;
             }
 
@@ -229,6 +230,23 @@ public class Main {
 
         restoreTerminal();
     }
+    private static void saveHistoryToHistFile() {
+
+    String histFile = System.getenv("HISTFILE");
+
+    if (histFile == null || histFile.isEmpty()) {
+        return;
+    }
+
+    try (PrintWriter pw = new PrintWriter(new FileWriter(histFile))) {
+
+        for (String cmd : HISTORY) {
+            pw.println(cmd);
+        }
+
+    } catch (IOException ignored) {
+    }
+}
     // to split the pipeline into separate commands, e.g. "ls -l | grep txt" → [["ls", "-l"], ["grep", "txt"]]
     // ---------------- PIPELINE SPLIT ----------------
 
