@@ -622,19 +622,45 @@ public class Main {
 
     // ---------------- FILENAME COMPLETION ----------------
     else {
+        
+    String token = (lastSpace == -1) ? current : current.substring(lastSpace + 1);
 
-        File dir = new File(".");
-        File[] files = dir.listFiles();
+    String dirPath;
+    
 
-        if (files != null) {
-            for (File f : files) {
-                String name = f.getName();
-                if (name.startsWith(prefix)) {
-                    matches.add(name);
-                }
+    int lastSlash = token.lastIndexOf('/');
+
+    if (lastSlash == -1) {
+        // normal current directory
+        dirPath = ".";
+        prefix = token;
+    } else {
+        dirPath = token.substring(0, lastSlash + 1); // include '/'
+        prefix = token.substring(lastSlash + 1);
+    }
+
+    File dir = new File(dirPath.isEmpty() ? "." : dirPath);
+
+    if (!dir.exists() || !dir.isDirectory()) {
+        return Collections.emptyList();
+    }
+
+    File[] files = dir.listFiles();
+    if (files == null) return Collections.emptyList();
+
+    for (File f : files) {
+        String name = f.getName();
+
+        if (name.startsWith(prefix)) {
+            // rebuild full path
+            if (lastSlash == -1) {
+                matches.add(name);
+            } else {
+                matches.add(dirPath + name);
             }
         }
     }
+}
 
     return new ArrayList<>(matches);
 }
