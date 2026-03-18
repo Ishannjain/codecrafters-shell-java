@@ -3,11 +3,34 @@ import java.util.*;
 public class Main {
     private static boolean lastwithtab=false;
     private  static final  List<String> HISTORY=new ArrayList<>();
-    private static final Set<String> BUILTINS =
-            new HashSet<>(Arrays.asList("exit", "echo", "type", "pwd", "cd","history"));
+    private static final Set<String> BUILTINS =new HashSet<>(Arrays.asList("exit", "echo", "type", "pwd", "cd","history"));
     static int historyIndex=-1;
     static int historySavedIndex=0;
     private static final BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+
+//     private static String getLastToken(String input) {
+//     int lastSpace = input.lastIndexOf(' ');
+//     if (lastSpace == -1) return input;
+//     return input.substring(lastSpace + 1);
+//        }   
+    
+//     private static List<String> getFileMatches(String prefix) {
+
+//     List<String> matches = new ArrayList<>();
+//     File dir = new File(".");
+
+//     File[] files = dir.listFiles();
+//     if (files == null) return matches;
+
+//     for (File f : files) {
+//         if (f.getName().startsWith(prefix)) {
+//             matches.add(f.getName());
+//         }
+//     }
+
+//     return matches;
+// }
+    
     private static void readHistoryFromFile(String path) {
 
     try (BufferedReader br = new BufferedReader(new FileReader(path))) {
@@ -25,6 +48,7 @@ public class Main {
         System.err.println("history: " + path + ": No such file or directory");
     }
 }
+    
     private static void runHistory(PrintStream out,List<String> args){
         if(args.size()>=2 && args.get(0).equals("-r")){
             String file=args.get(1);
@@ -69,6 +93,7 @@ public class Main {
             out.printf("%5d %s%n", i+1, HISTORY.get(i));
         }
     }
+        
     private static void loadHistoryFromHistFile() {
 
     String histFile = System.getenv("HISTFILE");
@@ -230,6 +255,7 @@ public class Main {
 
         restoreTerminal();
     }
+    
     private static void saveHistoryToHistFile() {
 
     String histFile = System.getenv("HISTFILE");
@@ -250,7 +276,7 @@ public class Main {
     // to split the pipeline into separate commands, e.g. "ls -l | grep txt" → [["ls", "-l"], ["grep", "txt"]]
     // ---------------- PIPELINE SPLIT ----------------
 
-private static List<List<String>> splitPipeline(List<String> tokens) {
+    private static List<List<String>> splitPipeline(List<String> tokens) {
 
     List<List<String>> commands = new ArrayList<>();
     List<String> current = new ArrayList<>();
@@ -268,7 +294,8 @@ private static List<List<String>> splitPipeline(List<String> tokens) {
 
     return commands;
 }
-private static byte[] runBuiltin(List<String> cmd, byte[] input, String currentDir) throws Exception {
+
+    private static byte[] runBuiltin(List<String> cmd, byte[] input, String currentDir) throws Exception {
 
     ByteArrayOutputStream out = new ByteArrayOutputStream();
     PrintStream ps = new PrintStream(out);
@@ -304,7 +331,7 @@ private static byte[] runBuiltin(List<String> cmd, byte[] input, String currentD
     return out.toByteArray();
 }
 
-private static void handlepipeline(List<String> tokens, String currentDir) {
+    private static void handlepipeline(List<String> tokens, String currentDir) {
 
     List<List<String>> commands = splitPipeline(tokens);
 
@@ -412,6 +439,7 @@ private static void handlepipeline(List<String> tokens, String currentDir) {
         e.printStackTrace();
     }
 }
+    
     private static String longestCommonPrefix(List<String> list) {
         if (list.isEmpty()) return "";
 
@@ -452,50 +480,55 @@ private static void handlepipeline(List<String> tokens, String currentDir) {
                 return buffer.toString().trim();
             }
 
-           else if (c == '\t') {
+          else if (c == '\t') {
 
-            List<String> matches = getMatches(buffer);
-            Collections.sort(matches);
+    String current = buffer.toString();
 
-            String current = buffer.toString();
+    int lastSpace = current.lastIndexOf(' ');
+    String prefix = (lastSpace == -1) ? current : current.substring(lastSpace + 1);
+    String before = (lastSpace == -1) ? "" : current.substring(0, lastSpace + 1);
 
-            if (matches.isEmpty()) {
-                System.out.print("\007");
-                System.out.flush();
-                lastwithtab = false;
-                continue;
-            }
+    List<String> matches = getMatches(buffer);
+    Collections.sort(matches);
 
-            if (matches.size() == 1) {
-                buffer.setLength(0);
-                buffer.append(matches.get(0)).append(" ");
-                redraw(buffer);
-                lastwithtab = false;
-                continue;
-            }
+    if (matches.isEmpty()) {
+        System.out.print("\007");
+        System.out.flush();
+        lastwithtab = false;
+        continue;
+    }
 
-            String lcp = longestCommonPrefix(matches);
+    // ✅ SINGLE MATCH
+    if (matches.size() == 1) {
+        buffer.setLength(0);
+        buffer.append(before).append(matches.get(0)).append(" ");
+        redraw(buffer);
+        lastwithtab = false;
+        continue;
+    }
 
-            if (!lcp.equals(current)) {
-                buffer.setLength(0);
-                buffer.append(lcp);
-                redraw(buffer);
-                lastwithtab = false;
-            } else {
-                if (!lastwithtab) {
-                    System.out.print("\007");
-                    System.out.flush();
-                    lastwithtab = true;
-                } else {
-                    System.out.print("\r\n");
-                    System.out.println(String.join("  ", matches));
-                    System.out.print("$ " + buffer.toString());
-                    System.out.flush();
-                    lastwithtab = false;
-                }
-            }
+    // ✅ MULTIPLE MATCHES → LCP
+    String lcp = longestCommonPrefix(matches);
+
+    if (!lcp.equals(prefix)) {
+        buffer.setLength(0);
+        buffer.append(before).append(lcp);
+        redraw(buffer);
+        lastwithtab = false;
+    } else {
+        if (!lastwithtab) {
+            System.out.print("\007");
+            System.out.flush();
+            lastwithtab = true;
+        } else {
+            System.out.print("\r\n");
+            System.out.println(String.join("  ", matches));
+            System.out.print("$ " + buffer.toString());
+            System.out.flush();
+            lastwithtab = false;
         }
-
+    }
+}
             else if (c == 127) { // backspace
                 if (buffer.length() > 0) {
                     buffer.deleteCharAt(buffer.length() - 1);
@@ -544,53 +577,73 @@ private static void handlepipeline(List<String> tokens, String currentDir) {
         }
     }
 
-   
     private static List<String> getMatches(StringBuilder buffer) {
 
-        String current = buffer.toString();
-        if(current.contains(" ")){
-            return Collections.emptyList();
-        }
-        Set<String> matches=new HashSet<>();
-        //builtin commands
+    String current = buffer.toString();
+
+    int lastSpace = current.lastIndexOf(' ');
+    String prefix = (lastSpace == -1) ? current : current.substring(lastSpace + 1);
+
+    Set<String> matches = new HashSet<>();
+
+    // ---------------- COMMAND COMPLETION ----------------
+    if (lastSpace == -1) {
+
+        // builtins
         for (String cmd : BUILTINS) {
-            if (cmd.startsWith(current)) {
+            if (cmd.startsWith(prefix)) {
                 matches.add(cmd);
             }
         }
-        // external executables command
-        String pathenv=System.getenv("PATH");
-        if(pathenv!=null){
-            String [] dirs=pathenv.split(File.pathSeparator);
-            for(String dir:dirs){
-                File folder=new File(dir);
-                if(!folder.isDirectory())continue;
-                File[] files=folder.listFiles();
-                if(files==null)continue;
-                for(File file:files){
-                    if(file.isFile() && file.canExecute()){
-                        String name=file.getName();
-                        if(name.startsWith(current)){
+
+        // PATH executables
+        String pathenv = System.getenv("PATH");
+        if (pathenv != null) {
+            String[] dirs = pathenv.split(File.pathSeparator);
+
+            for (String dir : dirs) {
+                File folder = new File(dir);
+                if (!folder.isDirectory()) continue;
+
+                File[] files = folder.listFiles();
+                if (files == null) continue;
+
+                for (File file : files) {
+                    if (file.isFile() && file.canExecute()) {
+                        String name = file.getName();
+                        if (name.startsWith(prefix)) {
                             matches.add(name);
                         }
                     }
                 }
             }
         }
-
-
-        return new ArrayList<>(matches);
     }
 
-    
+    // ---------------- FILENAME COMPLETION ----------------
+    else {
+
+        File dir = new File(".");
+        File[] files = dir.listFiles();
+
+        if (files != null) {
+            for (File f : files) {
+                String name = f.getName();
+                if (name.startsWith(prefix)) {
+                    matches.add(name);
+                }
+            }
+        }
+    }
+
+    return new ArrayList<>(matches);
+}
     private static void redraw(StringBuilder buffer) {
     System.out.print("\r");           // move cursor to start
     System.out.print("\033[K");       // clear line
     System.out.print("$ " + buffer.toString());
     System.out.flush();
 }
-
-
 
     private static void print(String msg) {
         System.out.print("\r" + msg);
