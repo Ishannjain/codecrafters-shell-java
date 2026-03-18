@@ -500,22 +500,30 @@ public class Main {
 
     // ✅ SINGLE MATCH
     if (matches.size() == 1) {
-        buffer.setLength(0);
-        buffer.append(before).append(matches.get(0)).append(" ");
-        redraw(buffer);
-        lastwithtab = false;
-        continue;
+    String match = matches.get(0);
+
+    buffer.setLength(0);
+    buffer.append(before).append(match);
+
+    // ✅ only add space if NOT directory
+    if (!match.endsWith("/")) {
+        buffer.append(" ");
     }
+
+    redraw(buffer);
+    lastwithtab = false;
+    continue;
+}
 
     // ✅ MULTIPLE MATCHES → LCP
     String lcp = longestCommonPrefix(matches);
 
     if (!lcp.equals(prefix)) {
-        buffer.setLength(0);
-        buffer.append(before).append(lcp);
-        redraw(buffer);
-        lastwithtab = false;
-    } else {
+    buffer.setLength(0);
+    buffer.append(before).append(lcp);
+    redraw(buffer);
+    lastwithtab = false;
+}else {
         if (!lastwithtab) {
             System.out.print("\007");
             System.out.flush();
@@ -622,7 +630,7 @@ public class Main {
 
     // ---------------- FILENAME COMPLETION ----------------
     else {
-        
+
     String token = (lastSpace == -1) ? current : current.substring(lastSpace + 1);
 
     String dirPath;
@@ -649,17 +657,21 @@ public class Main {
     if (files == null) return Collections.emptyList();
 
     for (File f : files) {
-        String name = f.getName();
+    String name = f.getName();
 
-        if (name.startsWith(prefix)) {
-            // rebuild full path
-            if (lastSlash == -1) {
-                matches.add(name);
-            } else {
-                matches.add(dirPath + name);
-            }
+    if (name.startsWith(prefix)) {
+
+        if (f.isDirectory()) {
+            name += "/";   // 🔥 key change
+        }
+
+        if (lastSlash == -1) {
+            matches.add(name);
+        } else {
+            matches.add(dirPath + name);
         }
     }
+}
 }
 
     return new ArrayList<>(matches);
